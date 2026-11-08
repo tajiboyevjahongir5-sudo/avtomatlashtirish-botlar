@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TeleAuto WebApp</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: var(--tg-theme-bg-color, #0f172a);
+      --card-bg: var(--tg-theme-secondary-bg-color, #1e293b);
+      --text: var(--tg-theme-text-color, #f8fafc);
+      --hint: var(--tg-theme-hint-color, #94a3b8);
+      --btn: var(--tg-theme-button-color, #38bdf8);
+      --btn-text: var(--tg-theme-button-text-color, #0f172a);
+      --border: rgba(255, 255, 255, 0.08);
+      --success: #22c55e;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 14px;
+      padding-bottom: 30px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 9999px;
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .status-badge.connected {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--hint);
+      margin-bottom: 4px;
+    }
+
+    input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--btn);
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--btn);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      margin-top: 8px;
+    }
+
+    .bot-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bot-item:last-child {
+      border-bottom: none;
+    }
+
+    .bot-info strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .bot-info span {
+      font-size: 12px;
+      color: var(--hint);
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .log-box {
+      max-height: 140px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚡ Avto-Bot Boshqaruvi</h1>
+    <span id="accountStatus" class="status-badge">Ulanmagan</span>
+  </div>
+
+  <!-- Akkaunt ulash bloki -->
+  <div class="card" id="authCard">
+    <div class="card-title">📱 Akkauntni Ulash</div>
+    <div id="stepPhone">
+      <div class="form-group">
+        <label>Telefon raqam (xalqaro formatda):</label>
+        <input type="tel" id="phoneInput" placeholder="+998901234567">
+      </div>
+      <button class="btn" onclick="sendAuthCode()">SMS / Kod so'rash</button>
+    </div>
+
+    <div id="stepCode" style="display: none; margin-top: 12px;">
+      <div class="form-group">
+        <label>Telegram yuborgan tasdiqlash kodi:</label>
+        <input type="text" id="codeInput" placeholder="12345">
+      </div>
+      <div class="form-group">
+        <label>2FA Parol (agar bo'lsa):</label>
+        <input type="password" id="passwordInput" placeholder="Ikki bosqichli parol">
+      </div>
+      <button class="btn" onclick="verifyAuthCode()">Tasdiqlash va Ulash</button>
+    </div>
+  </div>
+
+  <!-- Vazifa qo'shish -->
+  <div class="card">
+    <div class="card-title">➕ Yangi Bot Qo'shish</div>
+    <div class="form-group">
+      <label>Bot username'i:</label>
+      <input type="text" id="botUsername" placeholder="@misol_bot">
+    </div>
+    <div class="form-group">
+      <label>Yuboriladigan buyruq:</label>
+      <input type="text" id="botCommand" placeholder="/daily yoki /bonus">
+    </div>
+    <div class="form-group">
+      <label>Bosiladigan tugma matni (ixtiyoriy):</label>
+      <input type="text" id="botButton" placeholder="Bonusni olish">
+    </div>
+    <button class="btn" onclick="addBotTask()">Botni ro'yxatga qo'shish</button>
+  </div>
+
+  <!-- Qo'shilgan botlar ro'yxati -->
+  <div class="card">
+    <div class="card-title">🤖 Faol Botlar Ro'yxati</div>
+    <div id="botsList">
+      <div style="color: var(--hint); text-align: center; padding: 8px;">Hech qanday bot qo'shilmagan</div>
+    </div>
+    <button class="btn btn-secondary" onclick="runNowCycle()">⚡ Hozir ishga tushirish</button>
+  </div>
+
+  <!-- Loglar -->
+  <div class="card">
+    <div class="card-title">📜 Jarayon Loglari</div>
+    <div class="log-box" id="logBox">Tizim tayyor...</div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    let phoneCodeHash = "";
+
+    function addLog(msg) {
+      const box = document.getElementById("logBox");
+      const time = new Date().toLocaleTimeString();
+      box.innerText += `\n[${time}] ${msg}`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch("/api/status");
+        const data = await res.json();
+        const badge = document.getElementById("accountStatus");
+        const authCard = document.getElementById("authCard");
+
+        if (data.connected) {
+          badge.textContent = `Ulangan: @${data.user}`;
+          badge.className = "status-badge connected";
+          authCard.style.display = "none";
+        } else {
+          badge.textContent = "Ulanmagan";
+          badge.className = "status-badge";
+          authCard.style.display = "block";
+        }
+      } catch (e) {
+        addLog("Status tekshirishda xatolik: " + e.message);
+      }
+    }
+
+    async function sendAuthCode() {
+      const phone = document.getElementById("phoneInput").value.trim();
+      if (!phone) return alert("Iltimos, telefon raqamingizni kiriting!");
+
+      addLog("Kod so'ralmoqda: " + phone);
+      try {
+        const res = await fetch("/api/auth/send-code", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          phoneCodeHash = data.phone_code_hash;
+          document.getElementById("stepPhone").style.display = "none";
+          document.getElementById("stepCode").style.display = "block";
+          addLog("Tasdiqlash kodi Telegramga yuborildi!");
+        } else {
+          alert("Xatolik: " + data.detail);
+        }
+      } catch (e) {
+        alert("Server bilan aloqa uzildi: " + e.message);
+      }
+    }
+
+    async function verifyAuthCode() {
+      const phone = document.getElementById("phoneInput").value.trim();
+      const code = document.getElementById("codeInput").value.trim();
+      const password = document.getElementById("passwordInput").value;
+
+      try {
+        const res = await fetch("/api/auth/verify-code", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ phone, code, phone_code_hash: phoneCodeHash, password })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          addLog("Akkaunt muvaffaqiyatli ulandi!");
+          checkStatus();
+        } else {
+          alert("Xatolik: " + data.detail);
+        }
+      } catch (e) {
+        alert("Xatolik: " + e.message);
+      }
+    }
+
+    async function loadBots() {
+      try {
+        const res = await fetch("/api/bots");
+        const list = await res.json();
+        const container = document.getElementById("botsList");
+        if (!list.length) {
+          container.innerHTML = '<div style="color: var(--hint); text-align: center; padding: 8px;">Hech qanday bot qo\'shilmagan</div>';
+          return;
+        }
+        container.innerHTML = list.map((b, idx) => `
+          <div class="bot-item">
+            <div class="bot-info">
+              <strong>${b.username}</strong>
+              <span>Buyruq: ${b.command} ${b.button_text ? '| Tugma: ' + b.button_text : ''}</span>
+            </div>
+            <button class="del-btn" onclick="deleteBot(${idx})">✕</button>
+          </div>
+        `).join("");
+      } catch (e) {
+        addLog("Botlar ro'yxatini yuklashda xatolik.");
+      }
+    }
+
+    async function addBotTask() {
+      const username = document.getElementById("botUsername").value.trim();
+      const command = document.getElementById("botCommand").value.trim() || "/start";
+      const button_text = document.getElementById("botButton").value.trim();
+
+      if (!username) return alert("Bot username'ini kiriting!");
+
+      await fetch("/api/bots", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ username, command, button_text })
+      });
+
+      document.getElementById("botUsername").value = "";
+      document.getElementById("botCommand").value = "";
+      document.getElementById("botButton").value = "";
+      addLog(`Yangi bot qo'shildi: ${username}`);
+      loadBots();
+    }
+
+    async function deleteBot(idx) {
+      await fetch(`/api/bots/${idx}`, { method: "DELETE" });
+      addLog("Bot o'chirildi.");
+      loadBots();
+    }
+
+    async function runNowCycle() {
+      addLog("Avtomatik yig'ish boshlandi...");
+      const res = await fetch("/api/run-now", { method: "POST" });
+      const data = await res.json();
+      addLog(data.message || "Bajarildi");
+    }
+
+    // Dastlabki yuklash
+    checkStatus();
+    loadBots();
+  </script>
+</body>
+</html>
