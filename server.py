@@ -11,11 +11,16 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 load_dotenv()
 
 API_ID = int(os.getenv("API_ID", "12345678"))
 API_HASH = os.getenv("API_HASH", "your_api_hash_here")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEBAPP_URL = os.getenv("WEBAPP_URL")
 BOTS_FILE = "bots.json"
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
@@ -24,6 +29,40 @@ app = FastAPI(title="TeleAuto WebApp Backend")
 
 # Telethon mijozini yaratish
 client = TelegramClient("user_session", API_ID, API_HASH)
+
+async def start_telegram_bot():
+    if not BOT_TOKEN or "your_bot" in BOT_TOKEN:
+        logging.warning("⚠️ DIQQAT: BOT_TOKEN o'rnatilmagan! Railway Variables bo'limiga BOT_TOKEN qo'shing.")
+        return
+
+    try:
+        logging.info("🤖 Telegram Bot (Aiogram) polling ishga tushmoqda...")
+        tg_bot = Bot(token=BOT_TOKEN)
+        tg_dp = Dispatcher()
+
+        @tg_dp.message(CommandStart())
+        async def on_start(msg: types.Message):
+            current_url = os.getenv("WEBAPP_URL", "")
+            kb = None
+            if current_url and current_url.startswith("http"):
+                kb = InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(
+                            text="🚀 Boshqaruv Panelini Ochish (Web App)",
+                            web_app=WebAppInfo(url=current_url)
+                        )
+                    ]]
+                )
+            await msg.answer(
+                "👋 **Assalomu alaykum!**\n\n"
+                "Telegram botlarini avtomatlashtirish boshqaruv panelini ochish uchun pastdagi tugmani bosing:",
+                reply_markup=kb,
+                parse_mode="Markdown"
+            )
+
+        await tg_dp.start_polling(tg_bot)
+    except Exception as e:
+        logging.error(f"❌ Telegram botni ishga tushirishda xatolik: {e}")
 
 class SendCodeRequest(BaseModel):
     phone: str
@@ -54,8 +93,14 @@ def save_bots(bots: List[dict]):
 
 @app.on_event("startup")
 async def startup_event():
-    await client.connect()
-    logging.info("Telethon mijoziga ulanish o'rnatildi.")
+    try:
+        await client.connect()
+        logging.info("Telethon mijoziga ulanish o'rnatildi.")
+    except Exception as e:
+        logging.error(f"Telethon xatosi: {e}")
+
+    # Botni ham parallel fonda ishga tushiramiz
+    asyncio.create_task(start_telegram_bot())
 
 @app.get("/api/status")
 async def get_status():
