@@ -7,6 +7,7 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from telethon import TelegramClient
@@ -26,6 +27,15 @@ BOTS_FILE = "bots.json"
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
 
 app = FastAPI(title="TeleAuto WebApp Backend")
+
+# CORS ruxsatlarini berish (Telegram WebApp uchun)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Telethon mijozini yaratish
 client = TelegramClient("user_session", API_ID, API_HASH)
